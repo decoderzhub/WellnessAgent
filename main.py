@@ -16,17 +16,17 @@ os.environ['OPENAI_API_KEY'] = st.secrets['api_secret']
 openai.api_key = os.environ['OPENAI_API_KEY']
 
 # Setting page title and header
-st.set_page_config(page_title="Ernesto", page_icon=":teddy_bear:")
+st.set_page_config(page_title="WellnessAgent", page_icon=":robot:")
 
 # Initialise session state variables
 if 'generated' not in st.session_state:
     st.session_state['generated'] = [
-        "Hello! I\'m Ernesto what can I assist with you today?"]
+        "Hello! how can I assist with you today?"]
 if 'past' not in st.session_state:
-    st.session_state['past'] = ["Hello Ensono!"]
+    st.session_state['past'] = ["Hello, Wellness Agent!"]
 if 'messages' not in st.session_state:
     st.session_state['messages'] = [
-        {"role": "system", "content": "Hello! I\'m Ernesto what can I assist with you today?"}
+        {"role": "system", "content": "Hello! how can I assist with you today?"}
     ]
 if 'index' not in st.session_state:
     st.session_state['index'] = ''
