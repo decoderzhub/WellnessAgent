@@ -1,5 +1,5 @@
 import streamlit as st
-import os, uuid, openai
+import os, openai
 
 # Import necessary packages
 from llama_hub.file.base import SimpleDirectoryReader
@@ -29,7 +29,7 @@ if 'messages' not in st.session_state:
         {"role": "system", "content": "Hello! how can I assist with you today?"}
     ]
 if 'index' not in st.session_state:
-    st.session_state['index'] = ''
+    st.session_state['index'] = 'LLama'
 
 # Sidebar - let user choose model, show total cost of current conversation, and let user clear the current conversation
 # st.sidebar.title("Ernesto Assistant")
@@ -159,5 +159,5 @@ with container:
 if st.session_state['generated']:
     with response_container:
         for i in range(len(st.session_state['generated'])):
-            message(st.session_state["past"][i], is_user=True, key=str(uuid.uuid1()) + '_user')
-            message(str(st.session_state["generated"][i]).strip(), key=str(uuid.uuid4()))
+            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
+            message(str(st.session_state["generated"][i]).strip(), key=str(i))
