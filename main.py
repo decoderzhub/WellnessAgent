@@ -1,5 +1,9 @@
 import streamlit as st
-import os, openai
+import openai
+import os
+import threading
+import queue
+import time
 
 # Import necessary packages
 from llama_hub.file.base import SimpleDirectoryReader
@@ -9,6 +13,9 @@ from langchain.llms import OpenAI
 from langchain.chains.conversation.memory import ConversationBufferMemory
 from streamlit_chat import message
 from PIL import Image
+
+
+response = queue.Queue()
 
 image = Image.open('./images/wellness-logo.png')
 
@@ -30,6 +37,8 @@ if 'messages' not in st.session_state:
     ]
 if 'index' not in st.session_state:
     st.session_state['index'] = 'LLama'
+if 'words' not in st.session_state:
+    st.session_state['words'] = ''
 
 # Sidebar - let user choose model, show total cost of current conversation, and let user clear the current conversation
 # st.sidebar.title("Ernesto Assistant")
@@ -54,8 +63,7 @@ with st.sidebar:
     with col7:
         pass
     with col8:
-        for past in st.session_state['past']:
-            st.write(past)
+        pass       
     with col9:
         pass
     # model_name = st.sidebar.radio(
@@ -73,6 +81,18 @@ if clear_button:
     st.session_state['cost'] = []
     st.session_state['total_cost'] = 0.0
     st.session_state['total_tokens'] = []
+
+def update_history():
+        with st.sidebar, col8:
+            for i, past in enumerate(st.session_state['past']):
+                st.session_state['words'] = str(i+1)+". "+st.session_state['words']
+                i = st.empty()
+                past = past+"\n"
+                for char in past:
+                    st.session_state['words']+=char
+                    i.write(st.session_state['words'])
+                    time.sleep(.01)
+                st.session_state['words']=""
 
 def update_messages(message):
     st.session_state['messages'].append(
@@ -122,8 +142,8 @@ def llama_generate_response(prompt):
     storage_context = check_storage_exist()
     query_engine = load_index(storage_context)
     message = query_engine.query(prompt)
-    update_messages(message)
-    return message
+    # update_messages(message)
+    response.put(message)
 
 # generate langchain response
 def langchain_generate_response(prompt):
@@ -132,8 +152,29 @@ def langchain_generate_response(prompt):
     query_engine = load_index(storage_context)
     agent_chain = langchain_tool(query_engine)
     message = agent_chain.run(input=prompt)
-    update_messages(message)
-    return message
+    # update_messages(message)
+    response.put(message)
+
+def fetch_response(index):
+    fetching = True
+    st.session_state['past'].append(user_input)
+    if index == "LLama":
+        thread = threading.Thread(target=llama_generate_response(user_input))
+    elif index == "Langchain":
+        thread = threading.Thread(target=langchain_generate_response(user_input))
+    thread.start()
+    while fetching:
+        try:
+            output = response.get()
+            st.session_state['generated'].append(output)
+            update_messages(output)
+            if output:
+                fetching = False
+        except Exception as e:
+            print("Error: " + str(e))
+            thread.join()
+
+    thread.join()
 
 
 # container for chat history
@@ -144,20 +185,19 @@ container = st.container()
 with container:
     with st.form(key='my_form', clear_on_submit=True):
         user_input = st.text_area("You:", key='input', height=100)
-        index_radio = st.radio("Choose the indexer:",('LLama','Langchan'), key=st.session_state['index'], horizontal=True)
+        index_radio = st.radio("Choose the indexer:",('LLama','Langchain'), key=st.session_state['index'], horizontal=True)
         submit_button = st.form_submit_button(label='Send')
 
     if submit_button and user_input:
         if index_radio == 'LLama':
-            output = llama_generate_response(user_input)
-        elif index_radio == 'Langchan':
-            output = langchain_generate_response(user_input)
+          fetch_response(index_radio)
+        elif index_radio == 'Langchain':
+          fetch_response(index_radio)
         
-        st.session_state['past'].append(user_input)
-        st.session_state['generated'].append(output)
 
 if st.session_state['generated']:
     with response_container:
         for i in range(len(st.session_state['generated'])):
             message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
             message(str(st.session_state["generated"][i]).strip(), key=str(i))
+        update_history()
